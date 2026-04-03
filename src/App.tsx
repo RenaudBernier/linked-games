@@ -24,10 +24,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 function RequireAdmin({ children }: { children: ReactNode }) {
-  const { session, profile, loading, isAdmin } = useAuth()
+  const { session, profile, loading, effectiveIsAdmin } = useAuth()
   if (loading) return <BootScreen />
   if (!session || !profile) return <Navigate to="/auth" replace />
-  if (!isAdmin) return <Navigate to="/" replace />
+  if (!effectiveIsAdmin) return <Navigate to="/" replace />
   return <>{children}</>
 }
 

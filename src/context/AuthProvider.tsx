@@ -20,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [profileReady, setProfileReady] = useState(false)
+  const [previewAsParticipant, setPreviewAsParticipant] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -89,6 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, profile])
 
   const isAdmin = role === 'admin'
+  const effectiveIsAdmin = isAdmin && !previewAsParticipant
+
+  useEffect(() => {
+    if (!isAdmin) setPreviewAsParticipant(false)
+  }, [isAdmin])
 
   useEffect(() => {
     if (!profile || !session) return
@@ -104,12 +110,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       role,
       isAdmin,
+      previewAsParticipant,
+      setPreviewAsParticipant,
+      effectiveIsAdmin,
       loading,
       refreshProfile,
       refreshJwt,
       signOut,
     }),
-    [session, profile, role, isAdmin, loading, refreshProfile, refreshJwt, signOut],
+    [
+      session,
+      profile,
+      role,
+      isAdmin,
+      previewAsParticipant,
+      effectiveIsAdmin,
+      loading,
+      refreshProfile,
+      refreshJwt,
+      signOut,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -2,7 +2,15 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { profile, role, isAdmin, signOut } = useAuth()
+  const {
+    profile,
+    role,
+    isAdmin,
+    effectiveIsAdmin,
+    previewAsParticipant,
+    setPreviewAsParticipant,
+    signOut,
+  } = useAuth()
 
   return (
     <div className="shell">
@@ -11,14 +19,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
           Linked Games
         </Link>
         <nav className="nav-actions">
-          {isAdmin && (
+          {effectiveIsAdmin && (
             <Link to="/admin/challenges" className="nav-link">
               Admin · Challenges
             </Link>
           )}
           {profile && (
-            <span className="muted">
-              @{profile.username} · {role}
+            <span className="muted nav-user">
+              @{profile.username}
+              {isAdmin ? (
+                <>
+                  {' '}
+                  ·{' '}
+                  <select
+                    className="role-select"
+                    aria-label="View as role"
+                    value={previewAsParticipant ? 'participant' : 'admin'}
+                    onChange={(e) =>
+                      setPreviewAsParticipant(e.target.value === 'participant')
+                    }
+                  >
+                    <option value="admin">admin</option>
+                    <option value="participant">participant</option>
+                  </select>
+                </>
+              ) : (
+                <> · {role}</>
+              )}
             </span>
           )}
           <button type="button" className="btn ghost" onClick={() => void signOut()}>

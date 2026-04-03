@@ -90,6 +90,25 @@ a:hover {
   text-decoration: underline;
 }
 
+.nav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.role-select {
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+  max-width: 11rem;
+}
+
 .main {
   flex: 1;
   padding: 2rem 1.5rem 3rem;
