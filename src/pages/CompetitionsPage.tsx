@@ -34,6 +34,8 @@ export function CompetitionsPage() {
   const [templateMeta, setTemplateMeta] = useState<Map<string, string>>(new Map())
   const [playBusyKey, setPlayBusyKey] = useState<string | null>(null)
   const [playError, setPlayError] = useState<string | null>(null)
+  const [closeBusyId, setCloseBusyId] = useState<string | null>(null)
+  const [closeError, setCloseError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoadError(null)
@@ -122,6 +124,19 @@ export function CompetitionsPage() {
     }
     return m
   }, [mappings])
+
+  async function closeCompetition(competitionId: string) {
+    if (!effectiveIsAdmin) return
+    setCloseBusyId(competitionId)
+    setCloseError(null)
+    const { error } = await supabase
+      .from('competition_instances')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', competitionId)
+    if (error) setCloseError(error.message)
+    else await load()
+    setCloseBusyId(null)
+  }
 
   async function startPlay(competitionId: string, templateId: string) {
     if (!session?.user) return
@@ -373,10 +388,25 @@ export function CompetitionsPage() {
           {rows.map((c) => {
             const challengeIds = challengesByCompetition.get(c.id) ?? []
             const ended = c.ended_at ? new Date(c.ended_at).getTime() < Date.now() : false
+            const canClose =
+              effectiveIsAdmin &&
+              (!c.ended_at || new Date(c.ended_at).getTime() > Date.now())
             return (
               <li key={c.id} className="list-item">
                 <div>
-                  <strong>{c.title}</strong>
+                  <div className="competition-challenge-row" style={{ marginBottom: '0.35rem' }}>
+                    <strong>{c.title}</strong>
+                    {canClose && (
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        disabled={closeBusyId === c.id}
+                        onClick={() => void closeCompetition(c.id)}
+                      >
+                        {closeBusyId === c.id ? 'Closing…' : 'Close competition'}
+                      </button>
+                    )}
+                  </div>
                   <div className="muted small">
                     by {c.created_by} · {new Date(c.created_at).toLocaleString()}
                     {c.ended_at && ` · ends ${new Date(c.ended_at).toLocaleString()}`}
@@ -425,6 +455,7 @@ export function CompetitionsPage() {
           })}
         </ul>
         {playError && <p className="error">{playError}</p>}
+        {closeError && <p className="error">{closeError}</p>}
       </section>
     </div>
   )
