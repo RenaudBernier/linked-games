@@ -6,6 +6,7 @@ import { AuthPage } from '@/pages/AuthPage'
 import { ProfileSetupPage } from '@/pages/ProfileSetupPage'
 import { CompetitionsPage } from '@/pages/CompetitionsPage'
 import { AdminChallengesPage } from '@/pages/AdminChallengesPage'
+import { PlayChallengePage } from '@/pages/PlayChallengePage'
 
 function BootScreen() {
   return (
@@ -75,6 +76,7 @@ export default function App() {
         }
       >
         <Route index element={<CompetitionsPage />} />
+        <Route path="play/:pciId" element={<PlayChallengePage />} />
         <Route
           path="admin/challenges"
           element={

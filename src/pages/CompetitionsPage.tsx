@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { ChallengeTemplateRow, CompetitionInstanceRow } from '@/types/database'
@@ -7,8 +8,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 type TemplatePickRow = Pick<ChallengeTemplateRow, 'id' | 'type'>
 
+type MappingRow = {
+  competition_instance_id: string
+  challenge_template_id: string
+}
+
 export function CompetitionsPage() {
-  const { profile, effectiveIsAdmin } = useAuth()
+  const navigate = useNavigate()
+  const { profile, session, effectiveIsAdmin } = useAuth()
   const [rows, setRows] = useState<CompetitionInstanceRow[]>([])
   const [title, setTitle] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -23,17 +30,53 @@ export function CompetitionsPage() {
   const [addById, setAddById] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
+  const [mappings, setMappings] = useState<MappingRow[]>([])
+  const [templateMeta, setTemplateMeta] = useState<Map<string, string>>(new Map())
+  const [playBusyKey, setPlayBusyKey] = useState<string | null>(null)
+  const [playError, setPlayError] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     setLoadError(null)
-    const { data, error } = await supabase
-      .from('competition_instances')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (error) {
-      setLoadError(error.message)
+    const [compRes, mapRes] = await Promise.all([
+      supabase.from('competition_instances').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('competition_instances_challenges_mapping')
+        .select('competition_instance_id, challenge_template_id'),
+    ])
+    if (compRes.error) {
+      setLoadError(compRes.error.message)
       setRows([])
+      setMappings([])
+      setTemplateMeta(new Map())
     } else {
-      setRows((data ?? []) as CompetitionInstanceRow[])
+      setRows((compRes.data ?? []) as CompetitionInstanceRow[])
+      if (mapRes.error) {
+        setLoadError(mapRes.error.message)
+        setMappings([])
+        setTemplateMeta(new Map())
+      } else {
+        const mapRows = (mapRes.data ?? []) as MappingRow[]
+        setMappings(mapRows)
+        const ids = [...new Set(mapRows.map((m) => m.challenge_template_id))]
+        if (ids.length === 0) {
+          setTemplateMeta(new Map())
+        } else {
+          const { data: tpls, error: te } = await supabase
+            .from('challenge_templates')
+            .select('id, type')
+            .in('id', ids)
+          if (te) {
+            setLoadError(te.message)
+            setTemplateMeta(new Map())
+          } else {
+            const meta = new Map<string, string>()
+            for (const t of tpls ?? []) {
+              meta.set(t.id, t.type)
+            }
+            setTemplateMeta(meta)
+          }
+        }
+      }
     }
     setLoading(false)
   }, [])
@@ -69,6 +112,56 @@ export function CompetitionsPage() {
       (t) => t.id.toLowerCase().includes(q) || t.type.toLowerCase().includes(q),
     )
   }, [templates, idSearch])
+
+  const challengesByCompetition = useMemo(() => {
+    const m = new Map<string, string[]>()
+    for (const row of mappings) {
+      const list = m.get(row.competition_instance_id) ?? []
+      list.push(row.challenge_template_id)
+      m.set(row.competition_instance_id, list)
+    }
+    return m
+  }, [mappings])
+
+  async function startPlay(competitionId: string, templateId: string) {
+    if (!session?.user) return
+    const key = `${competitionId}:${templateId}`
+    setPlayBusyKey(key)
+    setPlayError(null)
+    const { data: existing, error: findErr } = await supabase
+      .from('player_challenge_instances')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('challenge_template_id', templateId)
+      .order('started_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (findErr) {
+      setPlayError(findErr.message)
+      setPlayBusyKey(null)
+      return
+    }
+    if (existing?.id) {
+      navigate(`/play/${existing.id}`)
+      setPlayBusyKey(null)
+      return
+    }
+    const { data: created, error: insErr } = await supabase
+      .from('player_challenge_instances')
+      .insert({
+        challenge_template_id: templateId,
+        user_id: session.user.id,
+      })
+      .select('id')
+      .single()
+    if (insErr || !created) {
+      setPlayError(insErr?.message ?? 'Could not start challenge.')
+      setPlayBusyKey(null)
+      return
+    }
+    navigate(`/play/${created.id}`)
+    setPlayBusyKey(null)
+  }
 
   function toggleTemplate(id: string) {
     setSelectedIds((prev) => {
@@ -171,8 +264,9 @@ export function CompetitionsPage() {
       <section className="section">
         <h2>Competitions</h2>
         <p className="muted">
-          Each instance has a title, creator, and optional end time. Admins can attach challenge
-          templates when creating a competition (search by id or type).
+          Open a competition below and use <strong>Play</strong> on a linked challenge to start or
+          resume your run. Admins can attach templates when creating a competition (search by id or
+          type).
         </p>
         {effectiveIsAdmin && (
           <form onSubmit={createCompetition} className="competition-create">
@@ -276,18 +370,61 @@ export function CompetitionsPage() {
           </p>
         )}
         <ul className="list">
-          {rows.map((c) => (
-            <li key={c.id} className="list-item">
-              <div>
-                <strong>{c.title}</strong>
-                <div className="muted small">
-                  by {c.created_by} · {new Date(c.created_at).toLocaleString()}
-                  {c.ended_at && ` · ends ${new Date(c.ended_at).toLocaleString()}`}
+          {rows.map((c) => {
+            const challengeIds = challengesByCompetition.get(c.id) ?? []
+            const ended = c.ended_at ? new Date(c.ended_at).getTime() < Date.now() : false
+            return (
+              <li key={c.id} className="list-item">
+                <div>
+                  <strong>{c.title}</strong>
+                  <div className="muted small">
+                    by {c.created_by} · {new Date(c.created_at).toLocaleString()}
+                    {c.ended_at && ` · ends ${new Date(c.ended_at).toLocaleString()}`}
+                  </div>
+                  <div className="competition-challenges">
+                    <span className="muted small" style={{ display: 'block', marginTop: '0.75rem' }}>
+                      Challenges
+                    </span>
+                    {challengeIds.length === 0 ? (
+                      <p className="muted small" style={{ margin: '0.35rem 0 0' }}>
+                        No challenges linked to this competition yet.
+                      </p>
+                    ) : (
+                      <ul className="competition-challenge-list">
+                        {challengeIds.map((tid) => {
+                          const busy = playBusyKey === `${c.id}:${tid}`
+                          const typeLabel = templateMeta.get(tid) ?? '…'
+                          return (
+                            <li key={tid} className="competition-challenge-row">
+                              <span>
+                                <span className="muted small">{typeLabel}</span>{' '}
+                                <code className="small">{tid}</code>
+                              </span>
+                              <button
+                                type="button"
+                                className="btn primary"
+                                disabled={ended || busy}
+                                onClick={() => void startPlay(c.id, tid)}
+                              >
+                                {busy ? 'Opening…' : ended ? 'Ended' : 'Play'}
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                    {ended && (
+                      <p className="muted small" style={{ margin: '0.5rem 0 0' }}>
+                        This competition has ended.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
+        {playError && <p className="error">{playError}</p>}
       </section>
     </div>
   )

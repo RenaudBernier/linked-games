@@ -350,6 +350,84 @@ a:hover {
   border: 1px solid var(--border);
 }
 
+.competition-challenge-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.competition-challenge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.competition-challenge-row code {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.queens-play {
+  margin-top: 1rem;
+}
+
+.queens-board {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: #0f1115;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.queens-row {
+  display: flex;
+  gap: 3px;
+}
+
+.queens-cell {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  flex: 1;
+  max-width: 3rem;
+  max-height: 3rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  color: #f5f0e6;
+  padding: 0;
+  font: inherit;
+}
+
+.queens-cell:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.queens-cell.has-queen {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+}
+
+.queens-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 code {
   font-size: 0.85em;
   color: var(--accent);
