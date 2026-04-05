@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { CompetitionInstanceRow } from '@/types/database'
 
 export function CompetitionsPage() {
-  const { profile } = useAuth()
+  const { profile, effectiveIsAdmin } = useAuth()
   const [rows, setRows] = useState<CompetitionInstanceRow[]>([])
   const [title, setTitle] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -53,19 +53,21 @@ export function CompetitionsPage() {
       <section className="section">
         <h2>Competitions</h2>
         <p className="muted">
-          Each instance has a title, creator, and optional end time. Challenge templates are managed
-          under Admin (admins only).
+          Each instance has a title, creator, and optional end time. Creating competitions and
+          challenge templates is limited to admins (see Admin · Challenges).
         </p>
-        <form onSubmit={createCompetition} className="inline-form">
-          <input
-            placeholder="New competition title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <button type="submit" className="btn primary">
-            Create
-          </button>
-        </form>
+        {effectiveIsAdmin && (
+          <form onSubmit={createCompetition} className="inline-form">
+            <input
+              placeholder="New competition title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <button type="submit" className="btn primary">
+              Create
+            </button>
+          </form>
+        )}
         {actionError && <p className="error">{actionError}</p>}
       </section>
 
@@ -73,7 +75,11 @@ export function CompetitionsPage() {
         {loading && <p className="muted">Loading competitions…</p>}
         {loadError && <p className="error">{loadError}</p>}
         {!loading && !loadError && rows.length === 0 && (
-          <p className="muted">No competitions yet. Create one above.</p>
+          <p className="muted">
+            {effectiveIsAdmin
+              ? 'No competitions yet. Create one above.'
+              : 'No competitions yet.'}
+          </p>
         )}
         <ul className="list">
           {rows.map((c) => (
