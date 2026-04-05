@@ -1,12 +1,18 @@
 import type { ReactNode } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Layout } from '@/components/Layout'
 import { AuthPage } from '@/pages/AuthPage'
 import { ProfileSetupPage } from '@/pages/ProfileSetupPage'
 import { CompetitionsPage } from '@/pages/CompetitionsPage'
+import { CompetitionDetailPage } from '@/pages/CompetitionDetailPage'
 import { AdminChallengesPage } from '@/pages/AdminChallengesPage'
 import { PlayChallengePage } from '@/pages/PlayChallengePage'
+
+function CompetitionDetailRoute() {
+  const { competitionId } = useParams()
+  return <CompetitionDetailPage key={competitionId ?? ''} />
+}
 
 function BootScreen() {
   return (
@@ -76,6 +82,7 @@ export default function App() {
         }
       >
         <Route index element={<CompetitionsPage />} />
+        <Route path="competition/:competitionId" element={<CompetitionDetailRoute />} />
         <Route path="play/:pciId" element={<PlayChallengePage />} />
         <Route
           path="admin/challenges"

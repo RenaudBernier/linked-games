@@ -432,3 +432,131 @@ code {
   font-size: 0.85em;
   color: var(--accent);
 }
+
+.competition-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.competition-list-search {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0f1115;
+  color: var(--text);
+  font: inherit;
+}
+
+.competition-filter-ended {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.competition-list-item {
+  padding: 0;
+  overflow: hidden;
+}
+
+.competition-list-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+}
+
+.competition-list-link {
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  margin: -0.25rem;
+  padding: 0.25rem;
+  outline-offset: 2px;
+}
+
+.competition-list-link:hover strong {
+  color: var(--accent);
+}
+
+.competition-list-meta {
+  display: inline-block;
+  margin-left: 0.5rem;
+}
+
+.competition-detail-header {
+  margin-bottom: 0.5rem;
+}
+
+.competition-back {
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.competition-back:hover {
+  color: var(--accent);
+}
+
+.competition-detail-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.leaderboard-chart {
+  margin-top: 0.75rem;
+}
+
+.leaderboard-chart-svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 17, 21, 0.85);
+}
+
+.leaderboard-chart-empty {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+}
+
+.leaderboard-legend {
+  list-style: none;
+  padding: 0.75rem 0 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  font-size: 0.88rem;
+}
+
+.leaderboard-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.leaderboard-legend-swatch {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { ChallengeTemplateRow, CompetitionInstanceRow } from '@/types/database'
@@ -13,9 +13,12 @@ type MappingRow = {
   challenge_template_id: string
 }
 
+function competitionIsEnded(c: CompetitionInstanceRow): boolean {
+  return c.ended_at != null && new Date(c.ended_at).getTime() < Date.now()
+}
+
 export function CompetitionsPage() {
-  const navigate = useNavigate()
-  const { profile, session, effectiveIsAdmin } = useAuth()
+  const { profile, effectiveIsAdmin } = useAuth()
   const [rows, setRows] = useState<CompetitionInstanceRow[]>([])
   const [title, setTitle] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -31,11 +34,11 @@ export function CompetitionsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   const [mappings, setMappings] = useState<MappingRow[]>([])
-  const [templateMeta, setTemplateMeta] = useState<Map<string, string>>(new Map())
-  const [playBusyKey, setPlayBusyKey] = useState<string | null>(null)
-  const [playError, setPlayError] = useState<string | null>(null)
   const [closeBusyId, setCloseBusyId] = useState<string | null>(null)
   const [closeError, setCloseError] = useState<string | null>(null)
+
+  const [listSearch, setListSearch] = useState('')
+  const [showEnded, setShowEnded] = useState(false)
 
   const load = useCallback(async () => {
     setLoadError(null)
@@ -49,35 +52,13 @@ export function CompetitionsPage() {
       setLoadError(compRes.error.message)
       setRows([])
       setMappings([])
-      setTemplateMeta(new Map())
     } else {
       setRows((compRes.data ?? []) as CompetitionInstanceRow[])
       if (mapRes.error) {
         setLoadError(mapRes.error.message)
         setMappings([])
-        setTemplateMeta(new Map())
       } else {
-        const mapRows = (mapRes.data ?? []) as MappingRow[]
-        setMappings(mapRows)
-        const ids = [...new Set(mapRows.map((m) => m.challenge_template_id))]
-        if (ids.length === 0) {
-          setTemplateMeta(new Map())
-        } else {
-          const { data: tpls, error: te } = await supabase
-            .from('challenge_templates')
-            .select('id, type')
-            .in('id', ids)
-          if (te) {
-            setLoadError(te.message)
-            setTemplateMeta(new Map())
-          } else {
-            const meta = new Map<string, string>()
-            for (const t of tpls ?? []) {
-              meta.set(t.id, t.type)
-            }
-            setTemplateMeta(meta)
-          }
-        }
+        setMappings((mapRes.data ?? []) as MappingRow[])
       }
     }
     setLoading(false)
@@ -125,6 +106,16 @@ export function CompetitionsPage() {
     return m
   }, [mappings])
 
+  const filteredRows = useMemo(() => {
+    const q = listSearch.trim().toLowerCase()
+    return rows.filter((c) => {
+      const titleOk = !q || c.title.toLowerCase().includes(q)
+      const ended = competitionIsEnded(c)
+      const endedOk = showEnded || !ended
+      return titleOk && endedOk
+    })
+  }, [rows, listSearch, showEnded])
+
   async function closeCompetition(competitionId: string) {
     if (!effectiveIsAdmin) return
     setCloseBusyId(competitionId)
@@ -136,46 +127,6 @@ export function CompetitionsPage() {
     if (error) setCloseError(error.message)
     else await load()
     setCloseBusyId(null)
-  }
-
-  async function startPlay(competitionId: string, templateId: string) {
-    if (!session?.user) return
-    const key = `${competitionId}:${templateId}`
-    setPlayBusyKey(key)
-    setPlayError(null)
-    const { data: existing, error: findErr } = await supabase
-      .from('player_challenge_instances')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .eq('challenge_template_id', templateId)
-      .order('started_at', { ascending: true })
-      .limit(1)
-      .maybeSingle()
-    if (findErr) {
-      setPlayError(findErr.message)
-      setPlayBusyKey(null)
-      return
-    }
-    if (existing?.id) {
-      navigate(`/play/${existing.id}`)
-      setPlayBusyKey(null)
-      return
-    }
-    const { data: created, error: insErr } = await supabase
-      .from('player_challenge_instances')
-      .insert({
-        challenge_template_id: templateId,
-        user_id: session.user.id,
-      })
-      .select('id')
-      .single()
-    if (insErr || !created) {
-      setPlayError(insErr?.message ?? 'Could not start challenge.')
-      setPlayBusyKey(null)
-      return
-    }
-    navigate(`/play/${created.id}`)
-    setPlayBusyKey(null)
   }
 
   function toggleTemplate(id: string) {
@@ -279,9 +230,8 @@ export function CompetitionsPage() {
       <section className="section">
         <h2>Competitions</h2>
         <p className="muted">
-          Open a competition below and use <strong>Play</strong> on a linked challenge to start or
-          resume your run. Admins can attach templates when creating a competition (search by id or
-          type).
+          Search and open a competition to see the leaderboard and questions. Admins can create
+          events and link challenge templates below.
         </p>
         {effectiveIsAdmin && (
           <form onSubmit={createCompetition} className="competition-create">
@@ -375,6 +325,28 @@ export function CompetitionsPage() {
       </section>
 
       <section className="section">
+        <div className="competition-list-toolbar">
+          <input
+            type="search"
+            className="competition-list-search"
+            placeholder="Search by title…"
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+            aria-label="Search competitions by title"
+          />
+          <label className="competition-filter-ended">
+            <input
+              type="checkbox"
+              checked={showEnded}
+              onChange={(e) => setShowEnded(e.target.checked)}
+            />
+            Show ended
+          </label>
+        </div>
+        <p className="muted small" style={{ margin: '0.35rem 0 0' }}>
+          Showing {filteredRows.length} of {rows.length}. By default, ended competitions are hidden.
+        </p>
+
         {loading && <p className="muted">Loading competitions…</p>}
         {loadError && <p className="error">{loadError}</p>}
         {!loading && !loadError && rows.length === 0 && (
@@ -384,77 +356,49 @@ export function CompetitionsPage() {
               : 'No competitions yet.'}
           </p>
         )}
+        {!loading && !loadError && rows.length > 0 && filteredRows.length === 0 && (
+          <p className="muted">No competitions match your search or filters.</p>
+        )}
         <ul className="list">
-          {rows.map((c) => {
+          {filteredRows.map((c) => {
             const challengeIds = challengesByCompetition.get(c.id) ?? []
-            const ended = c.ended_at ? new Date(c.ended_at).getTime() < Date.now() : false
+            const n = challengeIds.length
+            const ended = competitionIsEnded(c)
             const canClose =
               effectiveIsAdmin &&
               (!c.ended_at || new Date(c.ended_at).getTime() > Date.now())
             return (
-              <li key={c.id} className="list-item">
-                <div>
-                  <div className="competition-challenge-row" style={{ marginBottom: '0.35rem' }}>
+              <li key={c.id} className="list-item competition-list-item">
+                <div className="competition-list-row">
+                  <Link className="competition-list-link" to={`/competition/${c.id}`}>
                     <strong>{c.title}</strong>
-                    {canClose && (
-                      <button
-                        type="button"
-                        className="btn secondary"
-                        disabled={closeBusyId === c.id}
-                        onClick={() => void closeCompetition(c.id)}
-                      >
-                        {closeBusyId === c.id ? 'Closing…' : 'Close competition'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="muted small">
-                    by {c.created_by} · {new Date(c.created_at).toLocaleString()}
-                    {c.ended_at && ` · ends ${new Date(c.ended_at).toLocaleString()}`}
-                  </div>
-                  <div className="competition-challenges">
-                    <span className="muted small" style={{ display: 'block', marginTop: '0.75rem' }}>
-                      Challenges
+                    <span className="competition-list-meta muted small">
+                      {n} question{n === 1 ? '' : 's'}
+                      {ended ? ' · Ended' : ' · Open'}
                     </span>
-                    {challengeIds.length === 0 ? (
-                      <p className="muted small" style={{ margin: '0.35rem 0 0' }}>
-                        No challenges linked to this competition yet.
-                      </p>
-                    ) : (
-                      <ul className="competition-challenge-list">
-                        {challengeIds.map((tid) => {
-                          const busy = playBusyKey === `${c.id}:${tid}`
-                          const typeLabel = templateMeta.get(tid) ?? '…'
-                          return (
-                            <li key={tid} className="competition-challenge-row">
-                              <span>
-                                <span className="muted small">{typeLabel}</span>{' '}
-                                <code className="small">{tid}</code>
-                              </span>
-                              <button
-                                type="button"
-                                className="btn primary"
-                                disabled={ended || busy}
-                                onClick={() => void startPlay(c.id, tid)}
-                              >
-                                {busy ? 'Opening…' : ended ? 'Ended' : 'Play'}
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
-                    {ended && (
-                      <p className="muted small" style={{ margin: '0.5rem 0 0' }}>
-                        This competition has ended.
-                      </p>
-                    )}
-                  </div>
+                    <span className="muted small" style={{ display: 'block', marginTop: '0.25rem' }}>
+                      by {c.created_by} · {new Date(c.created_at).toLocaleString()}
+                      {c.ended_at && ` · ended ${new Date(c.ended_at).toLocaleString()}`}
+                    </span>
+                  </Link>
+                  {canClose && (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      disabled={closeBusyId === c.id}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        void closeCompetition(c.id)
+                      }}
+                    >
+                      {closeBusyId === c.id ? 'Closing…' : 'Close'}
+                    </button>
+                  )}
                 </div>
               </li>
             )
           })}
         </ul>
-        {playError && <p className="error">{playError}</p>}
         {closeError && <p className="error">{closeError}</p>}
       </section>
     </div>
