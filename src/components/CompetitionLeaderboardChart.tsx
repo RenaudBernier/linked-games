@@ -110,7 +110,7 @@ export function CompetitionLeaderboardChart({ events, windowStartIso, windowEndI
     return (
       <div className="leaderboard-chart-empty muted small">
         No completed challenges yet during this event. Scores appear when players finish linked
-        questions.
+        challenges.
       </div>
     )
   }

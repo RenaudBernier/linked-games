@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { ChallengeTemplateRow, PlayerChallengeInstanceRow } from '@/types/database'
 import { QueensBoard } from '@/components/QueensBoard'
 
+function useSafeReturnTo(): string | null {
+  const { state } = useLocation()
+  const raw = state && typeof state === 'object' && 'returnTo' in state ? (state as { returnTo?: unknown }).returnTo : undefined
+  if (typeof raw !== 'string' || !raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
 export function PlayChallengePage() {
   const { pciId } = useParams<{ pciId: string }>()
   const { session } = useAuth()
+  const returnTo = useSafeReturnTo()
 
   const [pci, setPci] = useState<PlayerChallengeInstanceRow | null>(null)
   const [template, setTemplate] = useState<ChallengeTemplateRow | null>(null)
@@ -82,11 +90,14 @@ export function PlayChallengePage() {
     )
   }, [pciId])
 
+  const backHref = returnTo ?? '/'
+  const backLabel = returnTo ? '← Back' : '← Competitions'
+
   if (!pciId) {
     return (
       <div className="page">
         <p className="error">Missing challenge id.</p>
-        <Link to="/">Back to competitions</Link>
+        <Link to={backHref}>{backLabel}</Link>
       </div>
     )
   }
@@ -95,7 +106,7 @@ export function PlayChallengePage() {
     return (
       <div className="page">
         <p className="error">{loadError}</p>
-        <Link to="/">Back to competitions</Link>
+        <Link to={backHref}>{backLabel}</Link>
       </div>
     )
   }
@@ -103,6 +114,9 @@ export function PlayChallengePage() {
   if (!pci || !template) {
     return (
       <div className="page">
+        <p className="muted small">
+          <Link to={backHref}>{backLabel}</Link>
+        </p>
         <p className="muted">Loading puzzle…</p>
       </div>
     )
@@ -111,7 +125,7 @@ export function PlayChallengePage() {
   return (
     <div className="page">
       <p className="muted small">
-        <Link to="/">← Competitions</Link>
+        <Link to={backHref}>{backLabel}</Link>
       </p>
       <section className="section">
         <h2>Challenge</h2>

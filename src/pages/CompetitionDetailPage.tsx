@@ -165,11 +165,24 @@ export function CompetitionDetailPage() {
     return new Date(now).toISOString()
   }, [competition])
 
+  const orderedTemplates = useMemo(() => {
+    return templateIds
+      .map((id) => templates.find((t) => t.id === id))
+      .filter((t): t is TemplatePickRow => t != null)
+  }, [templateIds, templates])
+
+  function formatChallengeType(type: string) {
+    if (!type) return type
+    return type.charAt(0).toUpperCase() + type.slice(1)
+  }
+
   async function onPlay(templateId: string) {
-    if (!session?.user) return
+    if (!session?.user || !competitionId) return
     setPlayBusyKey(templateId)
     setPlayError(null)
-    const { error: err } = await startChallengePlay(navigate, session.user, templateId)
+    const { error: err } = await startChallengePlay(navigate, session.user, templateId, {
+      returnTo: `/competition/${competitionId}`,
+    })
     if (err) setPlayError(err)
     setPlayBusyKey(null)
   }
@@ -247,8 +260,8 @@ export function CompetitionDetailPage() {
       <section className="section">
         <h3>Leaderboard</h3>
         <p className="muted small" style={{ marginTop: 0 }}>
-          One point per completed question in this competition. The chart uses completion time within
-          the event window (start through end, or now if still open).
+          One point per completed challenge in this competition. The chart uses completion time
+          within the event window (start through end, or now if still open).
         </p>
         <CompetitionLeaderboardChart
           events={leaderboardEvents}
@@ -258,30 +271,34 @@ export function CompetitionDetailPage() {
       </section>
 
       <section className="section">
-        <h3>Questions</h3>
+        <h3>Challenges</h3>
         {templateIds.length === 0 ? (
-          <p className="muted small">No questions linked to this competition yet.</p>
+          <p className="muted small">No challenges linked to this competition yet.</p>
         ) : (
-          <ul className="competition-challenge-list">
-            {templates.map((tpl) => {
+          <ol className="challenge-play-list">
+            {orderedTemplates.map((tpl, index) => {
               const busy = playBusyKey === tpl.id
               return (
-                <li key={tpl.id} className="competition-challenge-row">
-                  <span>
-                    <span className="muted small">{tpl.type}</span> <code className="small">{tpl.id}</code>
-                  </span>
+                <li key={tpl.id}>
                   <button
                     type="button"
-                    className="btn primary"
+                    className="challenge-play-card"
                     disabled={ended || busy}
                     onClick={() => void onPlay(tpl.id)}
                   >
-                    {busy ? 'Opening…' : ended ? 'Ended' : 'Play'}
+                    <span className="challenge-play-main">
+                      <span className="challenge-play-num" aria-hidden="true">
+                        {index + 1}.
+                      </span>
+                      <span className="challenge-play-type">{formatChallengeType(tpl.type)}</span>
+                    </span>
+                    {busy && <span className="challenge-play-status muted small">Opening…</span>}
+                    {ended && !busy && <span className="challenge-play-status muted small">Ended</span>}
                   </button>
                 </li>
               )
             })}
-          </ul>
+          </ol>
         )}
         {playError && <p className="error">{playError}</p>}
       </section>

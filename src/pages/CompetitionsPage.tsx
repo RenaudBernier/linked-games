@@ -230,7 +230,7 @@ export function CompetitionsPage() {
       <section className="section">
         <h2>Competitions</h2>
         <p className="muted">
-          Search and open a competition to see the leaderboard and questions. Admins can create
+          Search and open a competition to see the leaderboard and challenges. Admins can create
           events and link challenge templates below.
         </p>
         {effectiveIsAdmin && (
@@ -373,7 +373,7 @@ export function CompetitionsPage() {
                   <Link className="competition-list-link" to={`/competition/${c.id}`}>
                     <strong>{c.title}</strong>
                     <span className="competition-list-meta muted small">
-                      {n} question{n === 1 ? '' : 's'}
+                      {n} challenge{n === 1 ? '' : 's'}
                       {ended ? ' · Ended' : ' · Open'}
                     </span>
                     <span className="muted small" style={{ display: 'block', marginTop: '0.25rem' }}>
@@ -384,7 +384,7 @@ export function CompetitionsPage() {
                   {canClose && (
                     <button
                       type="button"
-                      className="btn secondary"
+                      className="btn secondary competition-list-close"
                       disabled={closeBusyId === c.id}
                       onClick={(e) => {
                         e.preventDefault()
