@@ -4,7 +4,13 @@ import { useAuth } from '@/hooks/useAuth'
 import type { ChallengeTemplateRow } from '@/types/database'
 import { MatrixPreview } from '@/components/MatrixPreview'
 
-const SAMPLE_MATRIX = [
+const SAMPLE_MATRIX_CHALLENGE = [
+  [1, 2, 0],
+  [0, 1, 2],
+  [2, 0, 1],
+]
+
+const SAMPLE_MATRIX_SOLUTION = [
   [1, 2, 0],
   [0, 1, 2],
   [2, 0, 1],
@@ -43,7 +49,11 @@ export function AdminChallengesPage() {
     setMsg(null)
     const { data: tpl, error: e1 } = await supabase
       .from('challenge_templates')
-      .insert({ matrix: SAMPLE_MATRIX, type: 'queens' })
+      .insert({
+        matrix_challenge: SAMPLE_MATRIX_CHALLENGE,
+        matrix_solution: SAMPLE_MATRIX_SOLUTION,
+        type: 'queens',
+      })
       .select('id')
       .single()
     if (e1 || !tpl) {
@@ -89,7 +99,10 @@ export function AdminChallengesPage() {
           Adds a <code>challenge_templates</code> row and maps it to your oldest competition when
           one exists.
         </p>
-        <MatrixPreview matrix={SAMPLE_MATRIX} />
+        <p className="muted small">Challenge</p>
+        <MatrixPreview matrix={SAMPLE_MATRIX_CHALLENGE} />
+        <p className="muted small">Solution</p>
+        <MatrixPreview matrix={SAMPLE_MATRIX_SOLUTION} />
         <button type="button" className="btn secondary" disabled={busy} onClick={() => void seedSample()}>
           {busy ? 'Working…' : 'Insert sample template'}
         </button>
@@ -107,7 +120,10 @@ export function AdminChallengesPage() {
           {rows.map((r) => (
             <li key={r.id} className="list-item">
               <div className="muted small">id: {r.id}</div>
-              <MatrixPreview matrix={r.matrix} />
+              <p className="muted small">Challenge</p>
+              <MatrixPreview matrix={r.matrix_challenge} />
+              <p className="muted small">Solution</p>
+              <MatrixPreview matrix={r.matrix_solution} />
             </li>
           ))}
         </ul>

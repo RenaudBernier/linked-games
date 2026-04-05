@@ -26,7 +26,8 @@ export type ChallengeTemplateType = 'queens'
 
 export type ChallengeTemplateRow = {
   id: string
-  matrix: Json
+  matrix_challenge: Json
+  matrix_solution: Json
   type: ChallengeTemplateType
 }
 
@@ -74,7 +75,8 @@ export type Database = {
         Row: ChallengeTemplateRow
         Insert: {
           id?: string
-          matrix: Json
+          matrix_challenge: Json
+          matrix_solution: Json
           type: ChallengeTemplateType
         }
         Update: Partial<ChallengeTemplateRow>
