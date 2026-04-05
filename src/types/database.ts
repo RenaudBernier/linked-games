@@ -21,9 +21,13 @@ export type CompetitionInstanceRow = {
   ended_at: string | null
 }
 
+/** Matches Postgres enum public.challenge_template_type */
+export type ChallengeTemplateType = 'queens'
+
 export type ChallengeTemplateRow = {
   id: string
   matrix: Json
+  type: ChallengeTemplateType
 }
 
 export type CompetitionChallengeMappingRow = {
@@ -71,6 +75,7 @@ export type Database = {
         Insert: {
           id?: string
           matrix: Json
+          type: ChallengeTemplateType
         }
         Update: Partial<ChallengeTemplateRow>
         Relationships: []
@@ -102,7 +107,9 @@ export type Database = {
         Returns: string | null
       }
     }
-    Enums: Record<string, never>
+    Enums: {
+      challenge_template_type: ChallengeTemplateType
+    }
     CompositeTypes: Record<string, never>
   }
 }

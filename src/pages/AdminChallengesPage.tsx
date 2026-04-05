@@ -43,7 +43,7 @@ export function AdminChallengesPage() {
     setMsg(null)
     const { data: tpl, error: e1 } = await supabase
       .from('challenge_templates')
-      .insert({ matrix: SAMPLE_MATRIX })
+      .insert({ matrix: SAMPLE_MATRIX, type: 'queens' })
       .select('id')
       .single()
     if (e1 || !tpl) {
