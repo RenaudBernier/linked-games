@@ -11,6 +11,13 @@ export function AuthPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [awaitingEmailConfirmation, setAwaitingEmailConfirmation] = useState(false)
+
+  function goToSignIn() {
+    setAwaitingEmailConfirmation(false)
+    setMode('signin')
+    setPassword('')
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -23,13 +30,17 @@ export function AuthPage() {
         if (!USERNAME_RE.test(un)) {
           throw new Error('Username: 3–24 characters, letters, numbers, underscores only.')
         }
-        const { error: err } = await supabase.auth.signUp({
+        const { data, error: err } = await supabase.auth.signUp({
           email: em,
           password,
           options: { data: { username: un } },
         })
         if (err) throw err
-        await supabase.auth.refreshSession()
+        if (data.session) {
+          await supabase.auth.refreshSession()
+        } else {
+          setAwaitingEmailConfirmation(true)
+        }
       } else {
         const id = identifier.trim()
         const { data: resolvedEmail, error: rpcErr } = await supabase.rpc(
@@ -53,6 +64,26 @@ export function AuthPage() {
     }
   }
 
+  if (awaitingEmailConfirmation) {
+    const em = email.trim()
+    return (
+      <div className="auth-page">
+        <div className="card auth-card">
+          <h1>Confirm your email address</h1>
+          <p className="lede">
+            We sent a confirmation link{em ? ` to ${em}` : ''}. Check your inbox and confirm your
+            email. When you're done, use the button below to sign in.
+          </p>
+          <div className="form">
+            <button type="button" className="btn primary" onClick={goToSignIn}>
+              Sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="auth-page">
       <div className="card auth-card">
@@ -62,14 +93,20 @@ export function AuthPage() {
           <button
             type="button"
             className={mode === 'signin' ? 'tab active' : 'tab'}
-            onClick={() => setMode('signin')}
+            onClick={() => {
+              setMode('signin')
+              setAwaitingEmailConfirmation(false)
+            }}
           >
             Sign in
           </button>
           <button
             type="button"
             className={mode === 'signup' ? 'tab active' : 'tab'}
-            onClick={() => setMode('signup')}
+            onClick={() => {
+              setMode('signup')
+              setAwaitingEmailConfirmation(false)
+            }}
           >
             Create account
           </button>
