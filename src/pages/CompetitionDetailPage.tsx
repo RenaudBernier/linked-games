@@ -49,6 +49,7 @@ export function CompetitionDetailPage() {
     }
 
     async function run() {
+      if (!competitionId) return
       const { data: comp, error: ce } = await supabase
         .from('competition_instances')
         .select('*')
