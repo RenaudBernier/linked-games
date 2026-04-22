@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   isValidQueensPlacement,
   parseQueenPositions,
@@ -22,6 +22,8 @@ const REGION_PALETTE = [
   '#5a5a5a',
 ]
 
+type CellMark = 'x' | 'queen'
+
 type Props = {
   matrixChallenge: Json
   matrixSolution: Json
@@ -40,26 +42,21 @@ export function QueensBoard({ matrixChallenge, matrixSolution, disabled, onSolve
     return parseQueenPositions(matrixSolution, n)
   }, [matrixSolution, regions, n])
 
-  const [queens, setQueens] = useState<Set<string>>(() => new Set())
+  const [marks, setMarks] = useState<Map<string, CellMark>>(() => new Map())
   const [message, setMessage] = useState<string | null>(null)
 
-  const toggle = useCallback(
-    (r: number, c: number) => {
-      if (disabled || !regions) return
-      const key = `${r},${c}`
-      setQueens((prev) => {
-        const next = new Set(prev)
-        if (next.has(key)) next.delete(key)
-        else next.add(key)
-        return next
-      })
-      setMessage(null)
-    },
-    [disabled, regions],
-  )
+  const queens = useMemo(() => {
+    const set = new Set<string>()
+    for (const [key, mark] of marks) {
+      if (mark === 'queen') set.add(key)
+    }
+    return set
+  }, [marks])
 
-  const submit = useCallback(() => {
-    if (!regions || n === 0) return
+  useEffect(() => {
+    if (disabled || !regions || n === 0) return
+    if (queens.size !== n) return
+
     const rules = isValidQueensPlacement(regions, queens)
     if (!rules.ok) {
       setMessage(rules.reason)
@@ -73,10 +70,27 @@ export function QueensBoard({ matrixChallenge, matrixSolution, disabled, onSolve
     }
     setMessage(null)
     onSolved()
-  }, [regions, n, queens, expectedSolution, onSolved])
+  }, [disabled, regions, n, queens, expectedSolution, onSolved])
+
+  const cycle = useCallback(
+    (r: number, c: number) => {
+      if (disabled || !regions) return
+      const key = `${r},${c}`
+      setMarks((prev) => {
+        const next = new Map(prev)
+        const current = next.get(key)
+        if (current === undefined) next.set(key, 'x')
+        else if (current === 'x') next.set(key, 'queen')
+        else next.delete(key)
+        return next
+      })
+      setMessage(null)
+    },
+    [disabled, regions],
+  )
 
   const clear = useCallback(() => {
-    setQueens(new Set())
+    setMarks(new Map())
     setMessage(null)
   }, [])
 
@@ -94,30 +108,38 @@ export function QueensBoard({ matrixChallenge, matrixSolution, disabled, onSolve
     <div className="queens-play">
       <p className="muted small">
         Place exactly {n} queens — one per row, column, and colored region. Queens cannot touch,
-        even diagonally. Click a cell to place or remove a queen.
+        even diagonally. When your layout is a complete valid solution, the challenge completes
+        automatically. Click a cell to mark it with an X (a square that can&apos;t hold a queen),
+        click again to place a queen, and click once more to clear it.
       </p>
       <div className="queens-board">
         {regions.map((row, ri) => (
           <div key={ri} className="queens-row">
             {row.map((regionId, ci) => {
               const key = `${ri},${ci}`
-              const has = queens.has(key)
+              const mark = marks.get(key)
               const bg =
                 rgbBackgrounds?.[ri]?.[ci] ??
                 REGION_PALETTE[Math.abs(regionId) % REGION_PALETTE.length]
+              const stateClass =
+                mark === 'queen' ? ' has-queen' : mark === 'x' ? ' has-x' : ''
+              const ariaLabel =
+                mark === 'queen'
+                  ? `Queen at row ${ri + 1}, column ${ci + 1}. Click to clear.`
+                  : mark === 'x'
+                    ? `Marked X at row ${ri + 1}, column ${ci + 1}. Click to place a queen.`
+                    : `Cell row ${ri + 1}, column ${ci + 1}. Click to mark with X.`
               return (
                 <button
                   key={key}
                   type="button"
-                  className={`queens-cell${has ? ' has-queen' : ''}`}
+                  className={`queens-cell${stateClass}`}
                   style={{ background: bg }}
-                  onClick={() => toggle(ri, ci)}
+                  onClick={() => cycle(ri, ci)}
                   disabled={disabled}
-                  aria-label={
-                    has ? `Remove queen from row ${ri + 1}, column ${ci + 1}` : `Cell row ${ri + 1} column ${ci + 1}`
-                  }
+                  aria-label={ariaLabel}
                 >
-                  {has ? '♛' : ''}
+                  {mark === 'queen' ? '♛' : mark === 'x' ? '✕' : ''}
                 </button>
               )
             })}
@@ -125,9 +147,6 @@ export function QueensBoard({ matrixChallenge, matrixSolution, disabled, onSolve
         ))}
       </div>
       <div className="queens-actions">
-        <button type="button" className="btn primary" disabled={disabled} onClick={submit}>
-          Submit solution
-        </button>
         <button type="button" className="btn secondary" disabled={disabled} onClick={clear}>
           Clear board
         </button>

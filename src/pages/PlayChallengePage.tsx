@@ -90,6 +90,10 @@ export function PlayChallengePage() {
     )
   }, [pciId])
 
+  const handleSolved = useCallback(() => {
+    void onSolved()
+  }, [onSolved])
+
   const backHref = returnTo ?? '/'
   const backLabel = returnTo ? '← Back' : '← Competitions'
 
@@ -139,7 +143,7 @@ export function PlayChallengePage() {
             matrixChallenge={template.matrix_challenge}
             matrixSolution={template.matrix_solution}
             disabled={saving}
-            onSolved={() => void onSolved()}
+            onSolved={handleSolved}
           />
         ) : (
           <p className="error">This challenge type is not playable in the app yet.</p>
